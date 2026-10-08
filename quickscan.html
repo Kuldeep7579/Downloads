@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QuickScan</title>
+<style>
+:root{--bg:#f5f6f8;--card:#fff;--tx:#1a1d23;--mu:#6b7280;--ac:#2563eb;--bd:#d9dce3}
+@media(prefers-color-scheme:dark){:root{--bg:#14161a;--card:#1d2026;--tx:#eef0f3;--mu:#9aa1ad;--bd:#33373f}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--tx);font:16px system-ui,Segoe UI,sans-serif}
+main{max-width:760px;margin:0 auto;padding:32px 20px}
+header{text-align:center;margin-bottom:24px}h1{margin:0;letter-spacing:.18em;font-size:28px}
+header p{margin:6px 0 0;color:var(--mu)}
+.card{background:var(--card);border:1px solid var(--bd);border-radius:14px;padding:20px;margin-bottom:16px}
+button{font:inherit;cursor:pointer;border:1px solid var(--bd);background:var(--card);color:var(--tx);border-radius:10px;padding:10px 18px}
+button.main{background:var(--ac);border-color:var(--ac);color:#fff;font-weight:700;font-size:18px;padding:16px 28px;width:100%}
+button:disabled{opacity:.5;cursor:wait}
+.fmt{display:flex;gap:8px}.fmt button{flex:1;font-weight:700}.fmt button.on{background:var(--ac);color:#fff;border-color:var(--ac)}
+label.l{display:block;font-weight:700;margin:16px 0 8px}
+input[type=text],input[type=number],select{font:inherit;padding:9px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);width:100%}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.row>*{flex:1;min-width:90px}
+.stage{position:relative;display:inline-block;max-width:100%;line-height:0;user-select:none;touch-action:none}
+.stage img{max-width:100%;max-height:60vh;border:1px solid var(--bd);background:#fff}
+#box{position:absolute;border:2px solid var(--ac);box-shadow:0 0 0 9999px rgba(0,0,0,.45);cursor:move;display:none}
+#box i{position:absolute;width:14px;height:14px;background:var(--ac);border:2px solid #fff;border-radius:50%}
+i[data-h=nw]{left:-8px;top:-8px;cursor:nwse-resize}i[data-h=ne]{right:-8px;top:-8px;cursor:nesw-resize}
+i[data-h=sw]{left:-8px;bottom:-8px;cursor:nesw-resize}i[data-h=se]{right:-8px;bottom:-8px;cursor:nwse-resize}
+.c{text-align:center}.thumbs{display:flex;gap:8px;justify-content:center;margin-top:10px;flex-wrap:wrap}
+.thumbs img{height:56px;border:2px solid var(--bd);cursor:pointer}.thumbs img.on{border-color:var(--ac)}
+#msg{margin-top:12px;text-align:center;color:#dc2626;font-weight:600}
+.bar{height:6px;background:var(--bd);border-radius:3px;overflow:hidden;margin-top:12px;display:none}
+.bar b{display:block;height:100%;width:35%;background:var(--ac);animation:s 1s infinite ease-in-out}
+@keyframes s{0%{margin-left:-35%}100%{margin-left:100%}}
+.sm{font-size:13px;color:var(--mu);text-align:center;margin-top:10px}.sm a{color:var(--ac);cursor:pointer}
+.hide{display:none!important}.chk{display:flex;gap:8px;align-items:center;font-weight:700;cursor:pointer}
+</style></head><body><main>
+<header><h1>QUICKSCAN</h1><p>Scan • Crop • Resize • Download</p></header>
+
+<div class="card">
+  <button class="main" id="scanBtn">📄 SCAN DOCUMENT</button>
+  <div class="bar" id="bar"><b></b></div><div id="status" class="sm"></div><div id="msg"></div>
+  <div class="sm"><a id="fileLink">or open an image file</a> · <a id="bridgeLink">scanner bridge</a><input type="file" id="file" accept="image/*" multiple hidden></div>
+</div>
+
+<div id="work" class="hide">
+ <div class="card c">
+  <label class="l" style="margin-top:0;text-align:left">Preview <span id="pg" style="font-weight:400;color:var(--mu)"></span></label>
+  <div class="stage" id="stage"><img id="pv" alt="Scanned page"><div id="box"><i data-h="nw"></i><i data-h="ne"></i><i data-h="sw"></i><i data-h="se"></i></div></div>
+  <div class="thumbs" id="thumbs"></div>
+  <div class="row" style="margin-top:14px">
+    <button id="cropBtn">✂ CROP</button>
+    <button id="okCrop" class="hide">✔ Confirm Crop</button>
+    <button id="resetCrop">Reset Crop</button>
+  </div>
+ </div>
+
+ <div class="card">
+  <label class="chk"><input type="checkbox" id="rz"> Resize</label>
+  <div id="rzOpts" class="hide">
+   <div class="row" style="margin-top:12px">
+     <select id="preset"><option>Original</option><option>A4</option><option>A5</option><option>Custom</option></select>
+     <select id="unit"><option>px</option><option>mm</option><option>cm</option></select>
+   </div>
+   <div class="row" style="margin-top:10px">
+     <input type="number" id="w" min="1" placeholder="Width"><input type="number" id="h" min="1" placeholder="Height">
+   </div>
+   <label class="chk" style="margin-top:10px;font-weight:400"><input type="checkbox" id="ar" checked> Maintain Aspect Ratio</label>
+   <div class="sm" style="text-align:left">mm / cm are converted at 300 DPI.</div>
+   <label class="l" style="margin-top:14px">Max file size (MB)</label>
+   <input type="number" id="mb" min="0.05" step="0.1" placeholder="No limit (e.g. 1 or 0.5)">
+   <div class="sm" style="text-align:left">Compresses to stay under this size. For PDF, the limit applies to the whole file.</div>
+  </div>
+
+  <label class="l">Format:</label>
+  <div class="fmt" id="fmt"><button class="on">JPG</button><button>PNG</button><button>PDF</button></div>
+
+  <label class="l">File Name:</label>
+  <div class="row" style="flex-wrap:nowrap"><input type="text" id="name" value="My_Document" spellcheck="false"><span id="ext" style="flex:0;color:var(--mu)">.jpg</span></div>
+
+  <button class="main" id="dl" style="margin-top:20px">⬇ DOWNLOAD</button>
+ </div>
+</div>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let BRIDGE=(()=>{try{return localStorage.getItem('qs_bridge')}catch(e){}})()||'http://localhost:8765';
+let pages=[],cur=0,fmt='jpg',cb=null,drag=null,orig={w:0,h:0};
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+const msg=t=>$('msg').textContent=t||'';
+function busy(t){$('bar').style.display=t?'block':'none';$('status').textContent=t||'';$('scanBtn').disabled=!!t}
+const load=src=>new Promise((res,rej)=>{const i=new Image();i.onload=()=>res(i);i.onerror=rej;i.src=src});
+
+/* SCAN via local scanner bridge: GET /scanners -> [{id,name}], POST /scan {scanner,dpi} -> {pages:[dataURL,...]} */
+$('scanBtn').onclick=async()=>{
+  msg();busy('Detecting scanner…');
+  try{
+    const r=await fetch(BRIDGE+'/scanners',{signal:AbortSignal.timeout(6000)});
+    const list=await r.json(); if(!list||!list.length) throw 0;
+    busy('Scanning… please wait');
+    const s=await fetch(BRIDGE+'/scan',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({scanner:list[0].id??list[0],dpi:300})});
+    const d=await s.json(); if(!d.pages||!d.pages.length) throw 0;
+    addPages(d.pages);
+  }catch(e){msg('No scanner detected. Please connect your scanner/printer and try again.')}
+  busy();
+};
+$('fileLink').onclick=()=>$('file').click();
+$('file').onchange=e=>{const fs=[...e.target.files];Promise.all(fs.map(f=>new Promise(r=>{const fr=new FileReader();fr.onload=()=>r(fr.result);fr.readAsDataURL(f)}))).then(addPages);e.target.value=''};
+$('bridgeLink').onclick=()=>{const u=prompt('Scanner bridge URL:',BRIDGE);if(u){BRIDGE=u.replace(/\/$/,'');try{localStorage.setItem('qs_bridge',BRIDGE)}catch(e){}}};
+
+async function addPages(list){
+  const start=pages.length;
+  pages.push(...list.map(s=>({orig:s,cur:s})));
+  cur=start;$('work').classList.remove('hide');await show();
+}
+async function show(){
+  cancelCrop();const p=pages[cur],i=await load(p.cur);$('pv').src=p.cur;
+  orig={w:i.naturalWidth,h:i.naturalHeight};syncPreset();
+  $('pg').textContent=pages.length>1?`— page ${cur+1} of ${pages.length}`:'';
+  $('thumbs').innerHTML='';
+  if(pages.length>1)pages.forEach((q,n)=>{const t=new Image();t.src=q.cur;if(n==cur)t.className='on';t.onclick=()=>{cur=n;show()};$('thumbs').append(t)});
+}
+
+/* CROP */
+function draw(){const b=$('box');b.style.left=cb.x+'px';b.style.top=cb.y+'px';b.style.width=cb.w+'px';b.style.height=cb.h+'px'}
+function startCrop(){const im=$('pv');cb={x:im.clientWidth*.1,y:im.clientHeight*.1,w:im.clientWidth*.8,h:im.clientHeight*.8};
+  $('box').style.display='block';$('okCrop').classList.remove('hide');draw()}
+function cancelCrop(){$('box').style.display='none';$('okCrop').classList.add('hide')}
+$('cropBtn').onclick=startCrop;
+$('resetCrop').onclick=()=>{pages[cur].cur=pages[cur].orig;show()};
+$('okCrop').onclick=async()=>{
+  const im=$('pv'),k=im.naturalWidth/im.clientWidth,c=document.createElement('canvas');
+  c.width=Math.round(cb.w*k);c.height=Math.round(cb.h*k);
+  c.getContext('2d').drawImage(im,cb.x*k,cb.y*k,cb.w*k,cb.h*k,0,0,c.width,c.height);
+  pages[cur].cur=c.toDataURL('image/png');show();
+};
+const box=$('box');
+box.onpointerdown=e=>{drag={m:e.target.dataset.h||'move',x:e.clientX,y:e.clientY,b:{...cb}};box.setPointerCapture(e.pointerId);e.preventDefault()};
+box.onpointerup=()=>drag=null;
+box.onpointermove=e=>{
+  if(!drag)return;const dx=e.clientX-drag.x,dy=e.clientY-drag.y,b=drag.b,m=drag.m,W=$('pv').clientWidth,H=$('pv').clientHeight;
+  let {x,y,w,h}=b;
+  if(m=='move'){x=clamp(b.x+dx,0,W-w);y=clamp(b.y+dy,0,H-h)}
+  else{
+    if(m.includes('w')){x=clamp(b.x+dx,0,b.x+b.w-20);w=b.x+b.w-x}
+    if(m.includes('e'))w=clamp(b.w+dx,20,W-b.x);
+    if(m.includes('n')){y=clamp(b.y+dy,0,b.y+b.h-20);h=b.y+b.h-y}
+    if(m.includes('s'))h=clamp(b.h+dy,20,H-b.y);
+  }
+  cb={x,y,w,h};draw();
+};
+
+/* RESIZE */
+const MM={A4:[210,297],A5:[148,210]};
+const toPx=(v,u)=>u=='mm'?v/25.4*300:u=='cm'?v/2.54*300:v;
+const fromPx=(v,u)=>u=='mm'?v*25.4/300:u=='cm'?v*2.54/300:v;
+const r1=v=>Math.round(v*10)/10;
+function syncPreset(){
+  const p=$('preset').value,u=$('unit');
+  if(p=='Original'){u.value='px';$('w').value=orig.w;$('h').value=orig.h}
+  else if(p!='Custom'){u.value='mm';$('w').value=MM[p][0];$('h').value=MM[p][1]}
+  $('w').disabled=$('h').disabled=p=='Original';
+}
+$('rz').onchange=()=>{$('rzOpts').classList.toggle('hide',!$('rz').checked);syncPreset()};
+$('preset').onchange=syncPreset;
+$('unit').onchange=()=>{ // convert shown values to new unit
+  const prev=$('unit').dataset.prev||'px',u=$('unit').value;
+  $('w').value=r1(fromPx(toPx($('w').value,prev),u));$('h').value=r1(fromPx(toPx($('h').value,prev),u));$('unit').dataset.prev=u};
+$('unit').dataset.prev='px';
+$('preset').addEventListener('change',()=>$('unit').dataset.prev=$('unit').value);
+$('w').oninput=()=>{$('preset').value=$('preset').value=='Original'?'Custom':'Custom';if($('ar').checked&&orig.w)$('h').value=r1($('w').value*orig.h/orig.w)};
+$('h').oninput=()=>{$('preset').value='Custom';if($('ar').checked&&orig.h)$('w').value=r1($('h').value*orig.w/orig.h)};
+
+/* FORMAT + NAME */
+document.querySelectorAll('#fmt button').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#fmt button').forEach(x=>x.classList.remove('on'));b.classList.add('on');
+  fmt=b.textContent.toLowerCase();$('ext').textContent='.'+fmt});
+
+/* DOWNLOAD */
+async function renderPage(p,type,maxBytes){
+  const i=await load(p.cur);let w=i.naturalWidth,h=i.naturalHeight;
+  if($('rz').checked&&$('preset').value!='Original'){
+    const u=$('unit').value,tw=Math.round(toPx(+$('w').value,u)),th=Math.round(toPx(+$('h').value,u));
+    if(tw>0&&th>0){
+      if($('ar').checked&&$('preset').value=='Custom'){w=tw;h=Math.round(tw*i.naturalHeight/i.naturalWidth)}else{w=tw;h=th}
+    }
+  }
+  const enc=(w,h,q)=>{const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d');
+    if(type!='image/png'){x.fillStyle='#fff';x.fillRect(0,0,w,h)}
+    x.drawImage(i,0,0,w,h);return new Promise(r=>c.toBlob(r,type,q))};
+  let b=await enc(w,h,.92);
+  for(let s=0;maxBytes&&b.size>maxBytes&&s<12;s++){
+    if(type=='image/jpeg'){ // find best quality that fits
+      let lo=.05,hi=.92,best=null;
+      for(let k=0;k<7;k++){const q=(lo+hi)/2,t=await enc(w,h,q);if(t.size<=maxBytes){best=t;lo=q}else hi=q}
+      if(best){b=best;break}
+    }
+    w=Math.round(w*.85);h=Math.round(h*.85);b=await enc(w,h,.6); // still too big: scale down
+  }
+  return {blob:b,w,h};
+}
+function save(blob,name){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=name;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),4000)}
+function makePDF(items){
+  const enc=new TextEncoder(),parts=[],offs=[];let len=0;
+  const add=b=>{if(typeof b=='string')b=enc.encode(b);parts.push(b);len+=b.length};
+  const obj=(n,s,st)=>{offs[n]=len;add(`${n} 0 obj\n${s}`);if(st){add('\nstream\n');add(st);add('\nendstream')}add('\nendobj\n')};
+  const n=items.length,tot=2+3*n;add('%PDF-1.4\n');
+  obj(1,'<</Type/Catalog/Pages 2 0 R>>');
+  obj(2,`<</Type/Pages/Kids[${items.map((_,i)=>`${3+i*3} 0 R`).join(' ')}]/Count ${n}>>`);
+  items.forEach((it,i)=>{const p=3+i*3,W=(it.w*.24).toFixed(2),H=(it.h*.24).toFixed(2),c=`q ${W} 0 0 ${H} 0 0 cm /I Do Q`;
+    obj(p,`<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${W} ${H}]/Contents ${p+1} 0 R/Resources<</XObject<</I ${p+2} 0 R>>>>>>`);
+    obj(p+1,`<</Length ${c.length}>>`,c);
+    obj(p+2,`<</Type/XObject/Subtype/Image/Width ${it.w}/Height ${it.h}/ColorSpace/DeviceRGB/BitsPerComponent 8/Filter/DCTDecode/Length ${it.bytes.length}>>`,it.bytes)});
+  const xr=len;add(`xref\n0 ${tot+1}\n0000000000 65535 f \n`);
+  for(let k=1;k<=tot;k++)add(String(offs[k]).padStart(10,'0')+' 00000 n \n');
+  add(`trailer\n<</Size ${tot+1}/Root 1 0 R>>\nstartxref\n${xr}\n%%EOF`);
+  return new Blob(parts,{type:'application/pdf'});
+}
+$('dl').onclick=async()=>{
+  if(!pages.length)return;
+  const base=($('name').value.trim()||'Document').replace(/[\\/:*?"<>|]/g,'_').replace(/\.(jpe?g|png|pdf)$/i,'');
+  $('dl').disabled=true;
+  const mb=$('rz').checked?+$('mb').value:0,lim=mb>0?mb*1048576:0;
+  try{
+    if(fmt=='pdf'){
+      const items=[];
+      for(const p of pages){const r=await renderPage(p,'image/jpeg',lim&&lim/pages.length);items.push({w:r.w,h:r.h,bytes:new Uint8Array(await r.blob.arrayBuffer())})}
+      save(makePDF(items),base+'.pdf');
+    }else{
+      const type=fmt=='png'?'image/png':'image/jpeg';
+      for(let k=0;k<pages.length;k++){const r=await renderPage(pages[k],type,lim);
+        save(r.blob,base+(pages.length>1?'_'+(k+1):'')+'.'+fmt);await new Promise(r=>setTimeout(r,300))}
+    }
+  }catch(e){msg('Could not create the file. Please try again.')}
+  $('dl').disabled=false;
+};
+</script></body></html>
